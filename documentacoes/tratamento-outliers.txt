@@ -1,0 +1,58 @@
+====================================================================
+RELATÓRIO DE ANÁLISE DE OUTLIERS E INCONSISTÊNCIAS (CAMADA SILVER)
+====================================================================
+
+1. CONTEXTO E OBJETIVO
+--------------------------------------------------------------------
+Este documento registra a identificação e o mapeamento estatístico de 
+outliers (valores extremos) e valores inválidos na base de dados de 
+e-commerce, utilizando a variável 'Tempo de Entrega' (em dias).
+
+A análise foi realizada seguindo rigorosamente os critérios de 
+rastreabilidade da arquitetura Medallion (camada Silver), sem que nenhum 
+registro fosse deletado ou alterado nesta etapa. O tratamento será 
+definido futuramente de acordo com as regras de negócio do time.
+
+
+2. MÉTODO E PARÂMETROS ESTATÍSTICOS
+--------------------------------------------------------------------
+Para a detecção das anomalias, aplicou-se o método do Intervalo 
+Interquartil (IQR - Interquartile Range):
+
+* Primeiro Quartil (Q1 - 25%): 7.00 dias
+* Terceiro Quartil (Q3 - 75%): 16.00 dias
+* Amplitude Interquartil (IQR = Q3 - Q1): 9.00 dias
+
+Cálculo dos limites de corte:
+* Limite Inferior (Q1 - 1.5 * IQR): -6.50 dias
+* Limite Superior (Q3 + 1.5 * IQR): 29.50 dias
+
+Nota: Como o limite inferior resultou em um valor negativo, o foco real 
+de anomalias de entrega concentrou-se apenas nos valores que estouraram 
+o limite superior (pedidos que levaram mais de 29.5 dias para chegar).
+
+
+3. RESULTADOS DA ANÁLISE
+--------------------------------------------------------------------
+* Total de registros analisados na base: 99.441 pedidos
+* Outliers detectados (Tempo de entrega > 29.5 dias): 4.732 pedidos
+* Representação percentual na base: 4.76%
+
+Validação de Inconsistências (Regras de Domínio):
+* Valores inválidos mapeados (tempo de entrega negativo): 0 registros
+  (Confirma que a etapa anterior de limpeza de dados na Silver foi 
+  executada com total consistência).
+
+
+4. ENTREGÁVEIS E RASTREABILIDADE (Definition of Done)
+--------------------------------------------------------------------
+* Gráfico Boxplot gerado:
+  Localizado em: 'analises/graficos/boxplot_tempo_entrega.png'
+  (Apresenta claramente a mediana, quartis, limites e pontos extremos).
+
+* Persistência dos registros de Outliers:
+  Localizado em: 'data/orders_anomalias_silver.csv'
+  (Tabela isolada que lista detalhadamente todos os 4.732 registros 
+  identificados para fácil consulta e suporte a análises futuras).
+
+====================================================================
