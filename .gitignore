@@ -1,2 +1,6 @@
 .venv/
 .env
+
+# Ignorar executáveis do Supabase e arquivos locais
+**/*.exe
+.supabase/

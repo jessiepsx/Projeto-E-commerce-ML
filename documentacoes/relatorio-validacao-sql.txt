@@ -1,0 +1,82 @@
+====================================================================
+RELATÓRIO DE MODELAGEM E VALIDAÇÃO DE INTEGRIDADE SQL (CAMADA SILVER/GOLD)
+====================================================================
+
+1. CONTEXTO E OBJETIVO
+--------------------------------------------------------------------
+Este documento registra as validações cruzadas, análise de chaves
+e integridade referencial realizadas via SQL no Supabase. O objetivo
+é garantir que as tabelas de pedidos (orders), clientes (customers)
+e pagamentos (payments) estejam perfeitamente consistentes antes de 
+gerar as tabelas analíticas finais.
+
+
+2. VERIFICAÇÃO DE CHAVES E DUPLICIDADE (User Story 2 & 4)
+--------------------------------------------------------------------
+Para garantir a unicidade das chaves primárias, foram executadas as
+seguintes queries de auditoria:
+
+* Query de validação para order_id (Tabela de Pedidos):
+  SELECT order_id, COUNT(*) FROM silver.orders_dataset 
+  GROUP BY order_id HAVING COUNT(*) > 1;
+  >> Resultado: 0 registros duplicados (OK!)
+
+* Query de validação para customer_id (Tabela de Clientes):
+  SELECT customer_id, COUNT(*) FROM silver.order_customers 
+  GROUP BY customer_id HAVING COUNT(*) > 1;
+  >> Resultado: 0 registros duplicados (OK!)
+
+
+3. ANÁLISE DE REGISTROS ÓRFÃOS E INTEGRIDADE (User Story 1 & 2)
+--------------------------------------------------------------------
+Garantia de que não existem pagamentos ou pedidos sem referências:
+
+* Query para buscar pagamentos órfãos (Sem pedido correspondente):
+  SELECT p.order_id FROM bronze.order_payments_dataset p
+  LEFT JOIN silver.orders_dataset o ON p.order_id = o.order_id
+  WHERE o.order_id IS NULL;
+  >> Resultado: 0 registros órfãos. A FK (Chave Estrangeira) está íntegra.
+
+
+4. MÉTRICAS AGREGADAS E PREVENÇÃO DE DUPLICIDADE (User Story 3)
+--------------------------------------------------------------------
+Criação de métricas de negócio por cliente unindo dados de compras
+e pagamentos de forma segura (prevenindo duplicações indesejadas de 
+JOIN através de subquery de agregação):
+
+* Query de consolidação aplicada:
+  SELECT 
+      c.customer_unique_id,
+      COUNT(DISTINCT o.order_id) AS total_pedidos,
+      SUM(p.total_pago_pedido) AS total_gasto,
+      ROUND(AVG(p.total_pago_pedido)::numeric, 2) AS ticket_medio
+  FROM silver.order_customers c
+  JOIN silver.orders_dataset o ON c.customer_id = o.customer_id
+  LEFT JOIN (
+      SELECT order_id, SUM(payment_value) AS total_pago_pedido
+      FROM bronze.order_payments_dataset
+      GROUP BY order_id
+  ) p ON o.order_id = p.order_id
+  GROUP BY c.customer_unique_id;
+
+
+5. VALIDAÇÃO DE QUALIDADE (QA) E CONSISTÊNCIA FINANCEIRA (User Story 5)
+--------------------------------------------------------------------
+Execução de checagem pós-processamento para garantir que nenhuma
+perda de dados ou valores nulos críticos existam no banco:
+
+* Query de checagem de nulos:
+  SELECT 
+      COUNT(*) - COUNT(order_id) AS nulos_order_id,
+      COUNT(*) - COUNT(customer_id) AS nulos_customer_id,
+      COUNT(*) - COUNT(order_purchase_timestamp) AS nulos_data_compra
+  FROM silver.orders_dataset;
+
+* Query de validação de batimento de saldos (Origem vs Destino):
+  SELECT 
+      ROUND(CAST((SELECT SUM(payment_value) FROM bronze.order_payments_dataset) AS numeric), 2) AS soma_total_pagamentos_bruto,
+      ROUND(CAST((SELECT SUM(p.payment_value) 
+       FROM bronze.order_payments_dataset p
+       INNER JOIN silver.orders_dataset o ON p.order_id = o.order_id) AS numeric), 2) AS soma_total_pagamentos_com_pedido;
+
+====================================================================
