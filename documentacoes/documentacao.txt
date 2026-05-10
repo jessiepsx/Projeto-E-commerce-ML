@@ -1,0 +1,25 @@
+# 🛠️ Setup Rápido: Ambiente e Banco
+
+Guia resumido para configurar o projeto localmente.
+
+## 1. Ambiente Virtual (Python)
+Crie e ative o ambiente para isolar as dependências.
+
+```bash
+# Criar a pasta do ambiente
+python -m venv .venv
+
+# Ativar (Windows)
+.venv\Scripts\activate
+
+# Selecionar no VS Code:
+# Ctrl + Shift + P -> "Python: Select Interpreter" -> Selecionar .venv
+
+pip install supabase python-dotenv
+
+SUPABASE_URL=[https://vneccntzthmtklbhzgqd.supabase.co]
+SUPABASE_KEY=sua_chave_anon_aqui
+
+.venv/
+.env
+__pycache__/

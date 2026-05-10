@@ -1,0 +1,92 @@
+======================================================================
+     RELATÓRIO DE LIMPEZA, VALIDAÇÃO E CARGA DE DADOS - CAMADA SILVER
+======================================================================
+Camada: Silver
+Tabela: silver.orders_dataset
+Responsável: Jéssica
+Ambiente: Supabase (PostgreSQL) + Python (Pandas)
+Data de Execução: Maio de 2026
+======================================================================
+
+1. CONTEXTO E OBJETIVOS
+----------------------------------------------------------------------
+Este documento apresenta as evidências de engenharia e governança de 
+dados referentes ao processo de Limpeza, Padronização e Carga do 
+conjunto de dados de pedidos (olist_orders_dataset.csv).
+
+O objetivo principal desta etapa foi transformar os dados brutos 
+oriundos da camada Bronze, aplicando regras de negócio e restrições de 
+integridade estrutural para disponibilizar um conjunto de dados 
+higienizado e altamente confiável na camada Silver. Esse processo 
+garante a aderência aos critérios de aceitação do projeto e o 
+cumprimento das diretrizes de Definition of Done (DoD) estabelecidas 
+pelo time.
+
+
+2. PIPELINE DE TRATAMENTO (PYTHON & PANDAS)
+----------------------------------------------------------------------
+Para garantir que o banco de dados não rejeitasse os registros por 
+inconsistência de formato, foi desenvolvido e executado o script 
+"limpeza.py". O pipeline realizou as seguintes etapas:
+
+  * Leitura Resiliente: Carga do arquivo original com 99.441 registros.
+  * Filtragem de Nulos Críticos: Remoção de linhas nulas nas colunas 
+    obrigatórias "order_id" e "customer_id".
+  * Deduplicação: Execução de drop_duplicates com base na chave 
+    primária "order_id" (mantendo a primeira ocorrência).
+  * Padronização de Texto: Normalização do campo "order_status" usando 
+    letras minúsculas e removendo espaços extras nas pontas.
+  * Tratamento de Datas: Conversão das 5 colunas de data/hora para o 
+    formato de data puro (YYYY-MM-DD), removendo as informações de 
+    fuso horário (timezones).
+
+
+3. CRITÉRIOS DE ACEITAÇÃO & EVIDÊNCIAS DE VALIDAÇÃO (SQL)
+----------------------------------------------------------------------
+Após a carga dos dados tratados no Supabase, foram executadas queries 
+de validação no SQL Editor para comprovar a qualidade dos dados:
+
+A - Tratamento de Valores Ausentes (NULL):
+   - Query: 
+     SELECT COUNT(*) FROM silver.orders_dataset WHERE order_id IS NULL OR customer_id IS NULL;
+   - Resultado: 0 registros nulos.
+   - Status: APROVADO
+
+B- Detecção e Remoção de Duplicatas:
+   - Query: 
+     SELECT order_id, COUNT(*) FROM silver.orders_dataset GROUP BY order_id HAVING COUNT(*) > 1;
+   - Resultado: 0 linhas retornadas (Nenhuma duplicata).
+   - Status: APROVADO
+
+C- Consistência e Regras de Negócio (Valores Impossíveis):
+   - Query: 
+     SELECT COUNT(*) FROM silver.orders_dataset WHERE order_estimated_delivery_date < order_purchase_timestamp;
+   - Resultado: 0 registros inconsistentes.
+   - Status: APROVADO
+
+D- Padronização de Domínio (Textos):
+   - Query: 
+     SELECT DISTINCT order_status FROM silver.orders_dataset;
+   - Resultado: Todos os status retornaram rigorosamente em letras 
+     minúsculas (ex: delivered, shipped, canceled), sem espaços soltos.
+   - Status: APROVADO
+
+
+4. CHECKLIST - DEFINITION OF DONE (DoD)
+----------------------------------------------------------------------
+[OK] Dados sem duplicatas (Confirmado via GROUP BY)
+[OK] Dados sem valores ausentes críticos (ID's 100% preenchidos)
+[OK] Consistência entre tabelas (Estrutura pronta para JOINs)
+[OK] Sem valores impossíveis/inconsistentes (Validação temporal OK)
+[OK] Evidência de limpeza gerada (Este relatório)
+
+
+5. MÉTRICA DE CARGA FINAL
+----------------------------------------------------------------------
+* Registros originais processados: 99.441
+* Registros inseridos com sucesso na camada Silver: 99.441
+* Integridade física e referencial de todos os registros preservada.
+
+----------------------------------------------------------------------
+Relatório desenvolvido para fins acadêmicos e controle do projeto.
+======================================================================
